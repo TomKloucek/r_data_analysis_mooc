@@ -46,8 +46,8 @@ goal_counts <- data %>%
             headers = sum(headers),
             others = sum(others)) %>%
   pivot_longer(cols = c(right_foot, left_foot, headers, others),
-               names_to = "Typ gólu",
-               values_to = "Počet")
+               names_to = "goal_type",
+               values_to = "count")
 
 ggplot(goal_counts, aes(x = goal_type, y = count, fill = position)) +
   geom_bar(stat = "identity", position = "dodge") +
