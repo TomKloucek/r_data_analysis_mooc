@@ -1,0 +1,130 @@
+Lesson 3
+========================================================
+
+```{r} 
+pf <- read.csv('data/pseudo_facebook.tsv', sep='\t')
+names(pf)
+# pomoci toho zjistim delimitr
+read.delim('data/pseudo_facebook.tsv')
+```
+
+### Histogram of Users' Birthdays
+Notes:
+
+```{r Histogram of Users\' Birthdays}
+install.packages('ggplot2')
+library(ggplot2)
+qplot(x = dob_day, data = pf) + scale_x_continuous(breaks=1:31)
+```
+
+
+```{r Faceting}
+# rozdelime histogram na 12 ruznych mensich histogramu dle mesice
+qplot(x = dob_day, data = pf) + scale_x_continuous(breaks=1:31) + facet_wrap(~dob_month, ncol = 4)
+```
+
+```{r Friend Count}
+qplot(x = friend_count, data = pf) + geom_histogram()
+ggplot(aes(x = friend_count), data = pf) +
+  geom_histogram()
+```
+
+
+```{r Limiting the Axes}
+qplot(x = friend_count, data = pf) + scale_x_continuous(limits = c(0, 1000))
+```
+
+```{r Faceting Friend Count}
+qplot(x = friend_count, data = pf, binwidth = 10) +
+  scale_x_continuous(limits = c(0, 1000),
+                     breaks = seq(0, 1000, 50))
+
+# rozdeleni dle genderu
+qplot(x = friend_count, data = pf, binwidth = 10) +
+  scale_x_continuous(limits = c(0, 1000),
+                     breaks = seq(0, 1000, 50)) + facet_wrap(~gender)
+```
+
+
+```{r Omitting NA Values}
+ggplot(aes(x = friend_count), data = subset(pf, !is.na(gender))) +
+  geom_histogram() +
+  scale_x_continuous(limits = c(0, 1000), breaks = seq(0, 1000, 50)) +
+  facet_wrap(~gender)
+
+# jeste lze pouzit na.omit
+```
+
+***
+
+### Statistics 'by' Gender
+Notes:
+
+```{r Statistics \'by\' Gender}
+table(pf$gender)
+by(pf$friend_count, pf$gender, summary)
+```
+
+```{r Tenure}
+ggplot(aes(x = tenure), data = pf) +
+  geom_histogram(binwidth = 30, color = 'black', fill = '#099DD9')
+
+ggplot(aes(x = tenure/365), data = pf) +
+  geom_histogram(binwidth = .25, color = 'black', fill = '#F79420')
+```
+
+```{r Labeling Plots}
+ggplot(aes(x = tenure / 365), data = pf) +
+  geom_histogram(color = 'black', fill = '#F79420') +
+  scale_x_continuous(breaks = seq(1, 7, 1), limits = c(0, 7)) +
+  xlab('Number of years using Facebook') +
+  ylab('Number of users in sample')
+```
+
+```{r User Ages}
+ggplot(aes(x = age), data = pf) +
+  geom_histogram(binwidth = 1, fill = '#5760AB') +
+  scale_x_continuous(breaks = seq(0, 113, 5))
+```
+
+```{r Add a Scaling Layer}
+ggplot(aes(x = friend_count), data = pf) + 
+  geom_histogram() +
+  scale_x_log10()
+```
+
+```{r Frequency Polygons}
+ggplot(aes(x = friend_count, y = ..count../sum(..count..)),
+       data = subset(pf, !is.na(gender))) +
+  geom_freqpoly(aes(color = gender), binwidth=10) +
+  scale_x_continuous(limits = c(0, 1000), breaks = seq(0, 1000, 50)) +
+  xlab('Friend Count') +
+  ylab('Proportion of users with that friend count')
+```
+
+```{r Likes on the Web}
+ggplot(aes(x = www_likes), data = subset(pf, !is.na(gender))) +
+  geom_freqpoly(aes(color = gender)) +
+  scale_x_log10()
+
+total_likes <- aggregate(pf$www_likes ~ pf$gender, data = pf, FUN = sum)
+```
+
+```{r Box Plots}
+qplot(x = gender, y=friend_count, data = subset(pf, !is.na(gender)),geom = 'boxplot') + coord_cartesian(ylim = c(0,250))
+
+by(pf$friend_count, pf$gender, summary)
+
+by(pf$friendships_initiated, pf$gender, FUN = summary)
+qplot(x = gender, y=friendships_initiated, data = subset(pf, !is.na(gender)),geom = 'boxplot') + coord_cartesian(ylim = c(0,250))
+
+```
+
+```{r Getting Logical}
+mobile_chekin <- NA
+pf$mobile_chekin <- ifelse(pf$mobile_likes > 0, 1, 0)
+pf$mobile_chekin <- factor(pf$mobile_chekin)
+summary(pf$mobile_chekin)
+level_counts <- table(pf$mobile_chekin)
+level_counts['1']/length(pf$mobile_chekin)
+```

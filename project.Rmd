@@ -1,0 +1,198 @@
+# Analýza Výkonnosti Hráčů v Lize Mistrů: Hodnocení Klíčových Statistik a Trendů
+
+### Načtení dat a knihoven
+``` {r}
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+data <- read.csv('data/project/goals.csv')
+
+```
+
+### Základní info co se dá dostat z gólů
+```{r}
+data <- data %>% arrange(headers)
+
+ggplot(data, aes(x = reorder(club, headers), y = headers)) +
+  geom_bar(stat = "identity", fill = "#ffb55a") +
+  labs(title = "Teams' Header Goals in Liga Mistrů",
+       x = "Club",
+       y = "Number of Headers Scored") +
+  theme_minimal() +
+  coord_flip()
+
+goal_counts <- data %>%
+  select(right_foot, left_foot, headers, others) %>%
+  summarize_all(sum)
+
+goal_counts <- gather(goal_counts, key = "goal_type", value = "count")
+
+ggplot(goal_counts, aes(x = goal_type, y = count, fill = goal_type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Most Common Types of Goals in Liga Mistrů",
+       x = "Goal Type",
+       y = "Count") +
+  theme_minimal()
+```
+Zde jsme se podívali na jednoduché statisiky ohledně gólů, vidíme, že Liverpool je nejnebezpečnějším týmem z hlaviček. Také vidíme, že nejčastěji padá gól po střelbě pravou nohou.
+
+### Typy branek dle pozic
+```{r}
+goal_counts <- data %>%
+  group_by(position) %>%
+  summarize(right_foot = sum(right_foot),
+            left_foot = sum(left_foot),
+            headers = sum(headers),
+            others = sum(others)) %>%
+  pivot_longer(cols = c(right_foot, left_foot, headers, others),
+               names_to = "goal_type",
+               values_to = "count")
+
+ggplot(goal_counts, aes(x = goal_type, y = count, fill = position)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Comparison of Goal Types by Position in Liga Mistrů",
+       x = "Goal Type",
+       y = "Count") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set3")
+```
+Jednoduché porovnání ohledně toho jaký post je nejgólovější. Zde je zajímavé, že obránci dali více gólů hlavou než levou nohou.
+
+### Tým s nejgólovějšími obránci
+```{r}
+defenders_data <- data[data$position == "Defender", ]
+
+club_goals_by_defenders <- defenders_data %>%
+  group_by(club) %>%
+  summarize(total_goals_by_defenders = sum(right_foot + left_foot + headers + others))
+
+club_goals_by_defenders <- club_goals_by_defenders %>%
+  arrange(desc(total_goals_by_defenders))
+
+ggplot(club_goals_by_defenders, aes(x = reorder(club, total_goals_by_defenders), y = total_goals_by_defenders)) +
+  geom_bar(stat = "identity", fill = "#bd7ebe") +
+  labs(title = "Kluby s nejgólovějšími obránci v Lize Mistrů",
+       x = "Klub",
+       y = "Celkový počet gólů obránců") +
+  theme_minimal() +
+  coord_flip()
+```
+Jednoduchá statistika o týmu s nejgólovějšími obránci.
+
+### Nejplatnější hráč v útoku
+``` {r}
+data <- read.csv("data/project/key_stats.csv")
+
+data$average_points <- (data$goals + data$assists) / data$minutes_played
+
+# Seřadit data podle průměrných bodů sestupně a vybrat prvních 10 hráčů
+top_10_players <- head(data[order(-data$average_points), ], 10)
+
+# Vytvoření grafu
+ggplot(top_10_players, aes(x = reorder(player_name, average_points), y = average_points)) +
+  geom_bar(stat = "identity", fill = "#fd7f6f") +
+  labs(title = "Průměrné body za odehraný čas deseti nejproduktivnějších hráčů",
+       x = "Hráč",
+       y = "Průměrné body za odehraný čas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+Zde vidíme, že Ozdoev, který odehrál málo zápasů a obecně minut, má ze všech hráču průměrně nejvíc bodů za odehrané minuty.
+
+### Hráč s nejvíce góly za co nejméně kilometrů
+```{r}
+data$distance_covered <- as.numeric(data$distance_covered)
+
+data$goals_per_distance <- data$goals / data$distance_covered
+
+top_10_players <- head(data[order(-data$goals_per_distance), ], 10)
+
+ggplot(top_10_players, aes(x = reorder(player_name, -goals_per_distance), y = goals_per_distance)) +
+  geom_bar(stat = "identity", fill = "#7eb0d5") +
+  labs(title = "Deset hráčů s nejvíce góly za nejméně naběhaných kilometrů",
+       x = "Hráč",
+       y = "Góly za kilometr") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+Zde znovu vidíme že Ozdoev sice toho naběhal málo, ale má gól za dva kilometry, což je výborná statistika.
+
+
+### Hráči s nejvíce střelami a týmy s nejvíce střelami
+```{r}
+data <- read.csv("data/project/attempts.csv")
+
+data_sorted <- data[order(-data$on_target), ]
+
+top_20_players <- head(data_sorted, 20)
+
+ggplot(top_20_players, aes(x = match_played, y = on_target, label = player_name)) +
+  geom_point() +
+  geom_text(hjust = 1.1, vjust = 1.1) +
+  labs(title = "20 hráčů s nejvíce střelami na bránu", x = "Počet odehraných zápasů", y = "Střely na bránu")
+
+data_sorted <- data[order(-data$total_attempts), ]
+
+top_10_clubs <- head(data_sorted, 10)
+
+ggplot(top_10_clubs, aes(x = club, y = total_attempts, fill = club)) +
+  geom_bar(stat = "identity") +
+  labs(title = "10 klubů s největším celkovým počtem pokusů", x = "Klub", y = "Celkový počet pokusů") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set3")
+```
+Zde je zajímavé vidět že nejvíc střel má Karim Benzema, prestože má o zápas méně než například Mohamed Salah. Z druhého grafu vidíme že Liverpool, který byl ve finále má o dost méně střel než například Bayern, který se do finále nedostal.
+
+### Spojení dat k určení nejlepšího hráče
+```{r}
+dataset1 <- read.csv("data/project/attacking.csv")
+dataset2 <- read.csv("data/project/distributon.csv")
+dataset3 <- read.csv("data/project/defending.csv")
+dataset4 <- read.csv("data/project/attempts.csv")
+dataset5 <- read.csv("data/project/disciplinary.csv")
+dataset6 <- read.csv("data/project/goals.csv")
+
+merged_data <- merge(dataset1, dataset2, by = "player_name") %>%
+  merge(dataset3, by = "player_name") %>%
+  merge(dataset4, by = "player_name") %>%
+  merge(dataset5, by = "player_name") %>%
+  merge(dataset6, by = "player_name")
+
+merged_data$score <- with(merged_data, (3*assists + 5*goals + t_won*0.1 + offsides*(-0.3) - red*5 - yellow*2 + pass_accuracy/50 + dribbles*0.2)/match_played.x)
+
+merged_data$total_score <- with(merged_data, (3*assists + 5*goals + t_won*0.1 + offsides*(-0.3) - red*5 - yellow*2 + pass_accuracy/50 + dribbles*0.2))
+
+player_scores <- merged_data %>%
+  select(player_name, score)
+player_total_scores <- merged_data %>%
+  select(player_name, total_score)
+
+ranked_players <- player_scores %>% arrange(desc(score))
+top_10_players <- head(ranked_players, 10)
+
+ranked_players_bytotal <- player_total_scores %>% arrange(desc(total_score))
+top_10_players_bytotal <- head(ranked_players_bytotal, 10)
+
+ggplot(data = top_10_players, aes(x = reorder(player_name, -score), y = score)) +
+  geom_bar(stat = "identity", fill = "#b2e061") +
+  labs(title = "Player Scores in the Tournament by match",
+       x = "Player Name",
+       y = "Score") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(data = top_10_players_bytotal, aes(x = reorder(player_name, -total_score), y = total_score)) +
+  geom_bar(stat = "identity", fill = "#8bd3c7") +
+  labs(title = "Player Scores in the Tournament",
+       x = "Player Name",
+       y = "Score") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+Oficiálně vyhrál trofej pro nejlepšího hráče Karim Benzema, zde díky mému algoritmu pro výpočet nejlepšího hráče nám vyšel Sebastian Haller, hlavně proto že na to kolik odehrál zápasů, tak toho zvládl opravdu hodně. Na druhém grafu ale jednoduše vidíme, že pokud nesrovnáváme po zápase, tak Karim Benzema byl opravdu nejlepším hráčem, je ale každopádně zajímavé, že i Haller se umístil vysoko, tedy na čtvrtém místě.
+
+### Závěr
+Tento projekt je závěrem kurzu "Data Analysis with R", který jsem si zapsal k předmětu MOOC. S datovou analýzou jsem se setkal poprvé a tento dataset jsem si vybral z důvodu že se zajímam o fotbal a to i z této analytické stránky a zajímalo mne jaké to může být býti datovým analytikem v tomto odvětví.
+Použitý dataset: [UCL 2021-2022](https://www.kaggle.com/datasets/azminetoushikwasi/ucl-202122-uefa-champions-league)
+
+@ Tomáš Klouček
